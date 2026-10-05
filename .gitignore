@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Training data, source design assets, notebooks, docs — kept locally for
+# reference but not part of the Android app itself, and far too large for
+# a git repo (the dataset alone is 600+MB).
+/project-resources/
+
+# Per-module build output (app/.gitignore already covers this too, but
+# listing it at the root as well in case any other module is added later).
+/app/build/
