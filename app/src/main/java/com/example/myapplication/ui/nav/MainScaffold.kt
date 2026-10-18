@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -40,9 +41,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.components.ScreenBackground
 import com.example.myapplication.ui.components.glass
+import com.example.myapplication.ui.dashboard.DashboardViewModel
 import com.example.myapplication.ui.explore.ExploreScreen
 import com.example.myapplication.ui.history.HistoryScreen
 import com.example.myapplication.ui.home.HomeScreen
+import com.example.myapplication.ui.profile.ProfileAvatarButton
+import com.example.myapplication.ui.profile.ProfileScreen
 import com.example.myapplication.ui.update.UpdateAvailableOverlay
 import com.example.myapplication.ui.update.UpdateViewModel
 import dev.chrisbanes.haze.HazeState
@@ -62,8 +66,17 @@ private const val TAB_ENTER_DELAY_MS = 90
 private const val TAB_ENTER_DURATION_MS = 300
 private const val TAB_ENTER_INITIAL_SCALE = 0.96f
 
+// The Profile screen is a destination of its own (opened from the avatar in the
+// top-right corner), not one of the three bottom-bar tabs.
+private const val PROFILE_ROUTE = "profile"
+
 @Composable
-fun MainScaffold() {
+fun MainScaffold(
+    userName: String? = null,
+    userEmail: String? = null,
+    userPhotoUrl: String? = null,
+    onSignOut: () -> Unit = {}
+) {
     val navController = rememberNavController()
 
     // The black + blooming-flower backdrop lives here, ONCE, behind the
@@ -79,12 +92,34 @@ fun MainScaffold() {
     // blocks anything here, it just surfaces a dismissible overlay if a
     // newer version turns up.
     val updateViewModel: UpdateViewModel = viewModel()
+
+    // One dashboard loader for the whole main screen, so opening and closing
+    // the Profile screen does not re-download everything from GitHub each time.
+    val dashboardViewModel: DashboardViewModel = viewModel()
     val availableUpdate by updateViewModel.availableUpdate.collectAsState()
     LaunchedEffect(Unit) { updateViewModel.checkForUpdateOnce() }
 
     ScreenBackground(modifier = Modifier.fillMaxSize()) { hazeState ->
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.hierarchy?.firstOrNull()?.route
+
+        // Profile circle, top-right on the main tabs. Drawn BEFORE the NavHost
+        // so each screen's own popups and scrims (result card, species card)
+        // cover it like everything else. Tapping it opens the Profile screen,
+        // where the circle itself is not needed.
+        if (currentRoute != PROFILE_ROUTE) {
+            ProfileAvatarButton(
+                name = userName,
+                photoUrl = userPhotoUrl,
+                onClick = {
+                    navController.navigate(PROFILE_ROUTE) { launchSingleTop = true }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 16.dp, end = 16.dp)
+            )
+        }
 
         NavHost(
             navController = navController,
@@ -131,9 +166,20 @@ fun MainScaffold() {
                 fadeOut(animationSpec = tween(TAB_EXIT_DURATION_MS, easing = FastOutLinearInEasing))
             }
         ) {
-            composable(AppDestination.HOME.route) { HomeScreen() }
+            composable(AppDestination.HOME.route) { HomeScreen(hazeState = hazeState) }
             composable(AppDestination.HISTORY.route) { HistoryScreen(hazeState = hazeState) }
             composable(AppDestination.EXPLORE.route) { ExploreScreen(hazeState = hazeState) }
+            composable(PROFILE_ROUTE) {
+                ProfileScreen(
+                    userName = userName,
+                    userEmail = userEmail,
+                    userPhotoUrl = userPhotoUrl,
+                    hazeState = hazeState,
+                    dashboardViewModel = dashboardViewModel,
+                    onBack = { navController.popBackStack() },
+                    onSignOut = onSignOut
+                )
+            }
         }
 
         // Floating glass-pill nav bar, lifted off the bottom edge.

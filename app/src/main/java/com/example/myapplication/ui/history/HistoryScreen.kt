@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -61,7 +62,16 @@ fun HistoryScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            // Adaptive top inset: statusBarsPadding() reads the actual
+            // status bar height for whatever device this runs on (tall
+            // notch, punch-hole camera, plain bar — whatever the OS
+            // reports), rather than a fixed dp guess that's wrong on some
+            // phones. The uniform padding below it then adds a bit of
+            // breathing room on top of that, same as every other edge.
+            .statusBarsPadding()
+            // Extra top room so a full-height panel does not run under the
+            // profile circle in the top-right corner.
+            .padding(start = 16.dp, top = 64.dp, end = 16.dp, bottom = 16.dp)
     ) {
         // The panel never grows past the space actually available on
         // screen — beyond that it caps here and the list scrolls instead.

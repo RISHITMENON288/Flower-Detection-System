@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -13,8 +14,8 @@ android {
         applicationId = "com.example.myapplication"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 4
+        versionName = "4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +33,10 @@ android {
     }
     buildFeatures {
         compose = true
+        // Generates BuildConfig.DEBUG, used by UpdateViewModel to skip the
+        // GitHub "update available" check on debug builds (AGP 8+ no
+        // longer generates BuildConfig by default).
+        buildConfig = true
     }
     packaging {
         // PyTorch's native .so libraries can collide on some AGP/NDK setups;
@@ -57,6 +62,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.pytorch.android.lite)
     implementation(libs.pytorch.android.torchvision.lite)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

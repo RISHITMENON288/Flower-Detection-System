@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +38,8 @@ import dev.chrisbanes.haze.*
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
     onLoginClick: () -> Unit = {}
 ) {
     val hazeState = rememberHazeState()
@@ -63,24 +69,49 @@ fun LoginScreen(
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
-                contentColor = Color.White
+                contentColor = Color.White,
+                disabledContainerColor = Color.Transparent,
+                disabledContentColor = Color.White
             ),
             elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp),
+            enabled = !isLoading,
             onClick = onLoginClick
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(id = R.drawable.theme_dark__show_text_no__shape_pill__platform_android_web_2x),
-                    contentDescription = "Google Logo",
-                    modifier = Modifier.size(40.dp)
-                )
-                Spacer(modifier = Modifier.width(30.dp))
-                Text(
-                    text = "Login",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.theme_dark__show_text_no__shape_pill__platform_android_web_2x),
+                        contentDescription = "Google Logo",
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(modifier = Modifier.width(30.dp))
+                    Text(
+                        text = "Login",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                }
             }
+        }
+
+        // Sign-in failure message, just under the button.
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                color = Color(0xFFFF8A80),
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = 60.dp)
+                    .padding(horizontal = 32.dp)
+            )
         }
     }
 }

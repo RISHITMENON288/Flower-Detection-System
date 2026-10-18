@@ -3,6 +3,7 @@ package com.example.myapplication.ui.update
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myapplication.BuildConfig
 import com.example.myapplication.data.ReleaseInfo
 import com.example.myapplication.data.UpdateChecker
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,17 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     fun checkForUpdateOnce() {
         if (hasChecked) return
         hasChecked = true
+
+        // UpdateChecker.isNewerVersion() only tests "different from what's
+        // installed", not "older" (see its own doc comment) — that's fine
+        // for a real install, which is always behind or equal to the
+        // latest published release, but a debug build run straight from
+        // Android Studio is routinely AHEAD of the last GitHub release you
+        // bothered to publish. Without this check that mismatch reads as
+        // "update available" every single run, no matter what versionName
+        // you set locally — only a real release build should ever ask.
+        if (BuildConfig.DEBUG) return
+
         viewModelScope.launch {
             val currentVersion = currentVersionNameOrNull() ?: return@launch
             val release = withContext(Dispatchers.IO) { UpdateChecker.fetchLatestRelease() }

@@ -17,8 +17,9 @@ data class ReleaseInfo(val versionTag: String, val releaseUrl: String)
  * on Dispatchers.IO. See UpdateViewModel, the only caller.
  */
 object UpdateChecker {
-    private const val OWNER = "RISHITMENON288"
-    private const val REPO = "Flower-Detection-System"
+    // Not private: the dashboard (data/github) reads the same repo.
+    const val OWNER = "RISHITMENON288"
+    const val REPO = "Flower-Detection-System"
 
     private const val TIMEOUT_MS = 8000
 
