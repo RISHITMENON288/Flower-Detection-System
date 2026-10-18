@@ -47,11 +47,14 @@ object ChangeControl {
         val reviewedList = ArrayList<RepoCommit>()
         var controlled = 0
         for (commit in commits) {
-            val reviewed = commit.sha !in mainLine ||
+            val isInitial = commit.parents.isEmpty() || commit.subject.equals("Initial commit", ignoreCase = true)
+            val reviewed = !isInitial && (
                 commit.parents.size > 1 ||
                 commit.sha in mergedShas ||
                 commit.subject.startsWith("Merge pull request") ||
-                squashSuffix.containsMatchIn(commit.subject)
+                squashSuffix.containsMatchIn(commit.subject) ||
+                (commit.sha !in mainLine && mainLine.isNotEmpty())
+            )
             if (reviewed) {
                 controlled++
                 reviewedList += commit

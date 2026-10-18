@@ -561,37 +561,40 @@
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    if (report.reviewedCommits.isNotEmpty()) {
+                    val prCommits = report.reviewedCommits.filterNot {
+                        it.parents.isEmpty() || it.subject.equals("Initial commit", ignoreCase = true)
+                    }
+                    if (prCommits.isNotEmpty()) {
                         CommitCapsuleList(
                             hazeState = hazeState,
-                            heading = "Via Pull Request / Review (${report.reviewedCommits.size})",
+                            heading = "Via Pull Request / Review (${prCommits.size})",
                             badgeColor = GoodColor,
-                            commits = report.reviewedCommits,
+                            commits = prCommits,
                             onClick = {
                                 onSelectGroup(
                                     CommitGroup(
                                         title = "Via Pull Request / Review",
                                         badgeColor = GoodColor,
-                                        commits = report.reviewedCommits
+                                        commits = prCommits
                                     )
                                 )
                             }
                         )
                     }
 
-                    if (report.directPushes.isNotEmpty()) {
+                    if (unreviewedPushes.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
                         CommitCapsuleList(
                             hazeState = hazeState,
-                            heading = "Direct Pushes to Main (${report.directPushes.size})",
+                            heading = "Direct Pushes to Main (${unreviewedPushes.size})",
                             badgeColor = BadColor,
-                            commits = report.directPushes,
+                            commits = unreviewedPushes,
                             onClick = {
                                 onSelectGroup(
                                     CommitGroup(
                                         title = "Direct Pushes to Main",
                                         badgeColor = BadColor,
-                                        commits = report.directPushes
+                                        commits = unreviewedPushes
                                     )
                                 )
                             }
@@ -696,6 +699,9 @@
         hazeState: HazeState,
         onDismiss: () -> Unit
     ) {
+        val displayCommits = group.commits.filterNot {
+            it.parents.isEmpty() || it.subject.equals("Initial commit", ignoreCase = true)
+        }
         val modalShape = RoundedCornerShape(28.dp)
         Box(
             modifier = Modifier
@@ -757,7 +763,7 @@
                 }
 
                 Text(
-                    text = "${group.commits.size} total commits on default branch",
+                    text = "${displayCommits.size} total commits on default branch",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp
                 )
@@ -770,7 +776,7 @@
                         .verticalScroll(rememberScrollState())
                         .heightIn(max = 340.dp)
                 ) {
-                    group.commits.forEachIndexed { idx, commit ->
+                    displayCommits.forEachIndexed { idx, commit ->
                         if (idx > 0) Spacer(Modifier.height(10.dp))
                         Column(
                             modifier = Modifier
@@ -792,7 +798,7 @@
                             ) {
                                 Text(
                                     text = commit.shortSha,
-                                    color = GoodColor,
+                                    color = group.badgeColor,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
