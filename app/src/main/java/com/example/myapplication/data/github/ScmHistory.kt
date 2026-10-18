@@ -12,8 +12,21 @@ object Traceability {
     fun hasReference(message: String): Boolean = reference.containsMatchIn(message)
 
     fun analyze(commits: List<RepoCommit>): TraceReport {
-        val untraced = commits.filterNot { hasReference(it.message) }
-        return TraceReport(total = commits.size, traced = commits.size - untraced.size, untraced = untraced)
+        val untraced = ArrayList<RepoCommit>()
+        val traced = ArrayList<RepoCommit>()
+        for (commit in commits) {
+            if (hasReference(commit.message)) {
+                traced += commit
+            } else {
+                untraced += commit
+            }
+        }
+        return TraceReport(
+            total = commits.size,
+            traced = traced.size,
+            untraced = untraced,
+            tracedCommits = traced
+        )
     }
 }
 

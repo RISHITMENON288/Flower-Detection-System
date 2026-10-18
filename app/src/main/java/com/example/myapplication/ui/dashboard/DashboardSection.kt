@@ -148,7 +148,7 @@
                 VersionCheckCard(hazeState, data.drift)
                 ReleaseAuditCard(hazeState, data.audits)
                 ChangeLogCard(hazeState, data.changeLog, onSelectEntry = selectHandler)
-                TraceabilityCard(hazeState, data.traceability)
+                TraceabilityCard(hazeState, data.traceability, onSelectGroup = selectGroupHandler)
                 ChangeControlCard(hazeState, data.changeControl, onSelectGroup = selectGroupHandler)
                 DependenciesCard(hazeState, data.dependencies)
             }
@@ -476,7 +476,11 @@
     }
     
     @Composable
-    private fun TraceabilityCard(hazeState: HazeState, traceability: Section<TraceReport>) {
+    private fun TraceabilityCard(
+        hazeState: HazeState,
+        traceability: Section<TraceReport>,
+        onSelectGroup: (CommitGroup) -> Unit
+    ) {
         DashCard(
             hazeState,
             title = "Traceability",
@@ -506,7 +510,45 @@
                             detail = if (isTraceable) null else "Mention #number in the commit message, e.g. \"Fixes #3\""
                         )
                     )
-                    CommitList("Not traceable", untracedChanges)
+                    Spacer(Modifier.height(8.dp))
+
+                    val tracedCommits = report.tracedCommits
+                    if (tracedCommits.isNotEmpty()) {
+                        CommitCapsuleList(
+                            hazeState = hazeState,
+                            heading = "Traceable Changes (${tracedCommits.size})",
+                            badgeColor = GoodColor,
+                            commits = tracedCommits,
+                            onClick = {
+                                onSelectGroup(
+                                    CommitGroup(
+                                        title = "Traceable Changes",
+                                        badgeColor = GoodColor,
+                                        commits = tracedCommits
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    if (report.untraced.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        CommitCapsuleList(
+                            hazeState = hazeState,
+                            heading = "Untraced Changes (${report.untraced.size})",
+                            badgeColor = BadColor,
+                            commits = report.untraced,
+                            onClick = {
+                                onSelectGroup(
+                                    CommitGroup(
+                                        title = "Untraced Changes",
+                                        badgeColor = BadColor,
+                                        commits = report.untraced
+                                    )
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

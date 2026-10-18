@@ -74,7 +74,12 @@ data class RepoCommit(
 data class PullRequestInfo(val number: Int, val title: String, val mergeCommitSha: String?)
 
 /** How many recent commits can be traced back to an issue or pull request (#123). */
-data class TraceReport(val total: Int, val traced: Int, val untraced: List<RepoCommit>) {
+data class TraceReport(
+    val total: Int,
+    val traced: Int,
+    val untraced: List<RepoCommit>,
+    val tracedCommits: List<RepoCommit> = emptyList()
+) {
     val percent: Int get() = if (total == 0) 100 else traced * 100 / total
 }
 
