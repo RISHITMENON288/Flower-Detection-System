@@ -44,6 +44,7 @@ object ChangeControl {
         }
 
         val direct = ArrayList<RepoCommit>()
+        val reviewedList = ArrayList<RepoCommit>()
         var controlled = 0
         for (commit in commits) {
             val reviewed = commit.sha !in mainLine ||
@@ -51,12 +52,18 @@ object ChangeControl {
                 commit.sha in mergedShas ||
                 commit.subject.startsWith("Merge pull request") ||
                 squashSuffix.containsMatchIn(commit.subject)
-            if (reviewed) controlled++ else direct += commit
+            if (reviewed) {
+                controlled++
+                reviewedList += commit
+            } else {
+                direct += commit
+            }
         }
         return ChangeControlReport(
             total = commits.size,
             viaPullRequest = controlled,
             directPushes = direct,
+            reviewedCommits = reviewedList,
             mergedPullRequests = pulls.size
         )
     }

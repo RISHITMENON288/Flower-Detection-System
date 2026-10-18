@@ -83,6 +83,7 @@ data class ChangeControlReport(
     val total: Int,
     val viaPullRequest: Int,
     val directPushes: List<RepoCommit>,
+    val reviewedCommits: List<RepoCommit> = emptyList(),
     val mergedPullRequests: Int
 ) {
     val percentViaPullRequest: Int get() = if (total == 0) 100 else viaPullRequest * 100 / total

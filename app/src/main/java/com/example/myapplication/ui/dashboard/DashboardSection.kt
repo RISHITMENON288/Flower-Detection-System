@@ -528,14 +528,101 @@
                             detail = if (isControlled) null else "Work on a branch and merge it with a pull request"
                         )
                     )
-                    CommitList("Pushed directly", unreviewedPushes)
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
+
+                    if (report.reviewedCommits.isNotEmpty()) {
+                        CommitCapsuleList(
+                            hazeState = hazeState,
+                            heading = "Via Pull Request / Review (${report.reviewedCommits.size})",
+                            badgeColor = GoodColor,
+                            commits = report.reviewedCommits
+                        )
+                    }
+
+                    if (report.directPushes.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        CommitCapsuleList(
+                            hazeState = hazeState,
+                            heading = "Direct Pushes to Main (${report.directPushes.size})",
+                            badgeColor = BadColor,
+                            commits = report.directPushes
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
                     MutedText("Whether branch protection is switched on cannot be read without logging in to GitHub, so this shows what actually happened.")
                 }
             }
         }
     }
     
+    @Composable
+    private fun CommitCapsuleList(
+        hazeState: HazeState,
+        heading: String,
+        badgeColor: Color,
+        commits: List<RepoCommit>
+    ) {
+        val capsuleShape = RoundedCornerShape(14.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(capsuleShape)
+                .glass(
+                    hazeState = hazeState,
+                    shape = capsuleShape,
+                    radius = 14.dp,
+                    tintAlpha = 0.08f,
+                    borderAlpha = 0.22f
+                )
+                .padding(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(badgeColor)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = heading,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            commits.take(5).forEach { commit ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = commit.shortSha,
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = commit.subject.ifBlank { "(no message)" },
+                        color = Color.White.copy(alpha = 0.88f),
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            if (commits.size > 5) {
+                MutedText("+ ${commits.size - 5} more")
+            }
+        }
+    }
+
     @Composable
     private fun CommitList(heading: String, commits: List<RepoCommit>) {
         if (commits.isEmpty()) return
