@@ -12,6 +12,7 @@
     import androidx.compose.foundation.layout.ColumnScope
     import androidx.compose.foundation.layout.Row
     import androidx.compose.foundation.layout.Spacer
+    import androidx.compose.foundation.layout.defaultMinSize
     import androidx.compose.foundation.layout.fillMaxSize
     import androidx.compose.foundation.layout.fillMaxWidth
     import androidx.compose.foundation.layout.height
@@ -43,6 +44,7 @@
     import androidx.compose.ui.Alignment
     import androidx.compose.ui.Modifier
     import androidx.compose.ui.draw.clip
+    import androidx.compose.ui.draw.clipToBounds
     import androidx.compose.ui.graphics.Color
     import androidx.compose.ui.text.font.FontWeight
     import androidx.compose.ui.text.style.TextOverflow
@@ -582,19 +584,19 @@
                         )
                     }
 
-                    if (unreviewedPushes.isNotEmpty()) {
+                    if (report.directPushes.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
                         CommitCapsuleList(
                             hazeState = hazeState,
-                            heading = "Direct Pushes to Main (${unreviewedPushes.size})",
+                            heading = "Direct Pushes to Main (${report.directPushes.size})",
                             badgeColor = BadColor,
-                            commits = unreviewedPushes,
+                            commits = report.directPushes,
                             onClick = {
                                 onSelectGroup(
                                     CommitGroup(
                                         title = "Direct Pushes to Main",
                                         badgeColor = BadColor,
-                                        commits = unreviewedPushes
+                                        commits = report.directPushes
                                     )
                                 )
                             }
@@ -699,10 +701,9 @@
         hazeState: HazeState,
         onDismiss: () -> Unit
     ) {
-        val displayCommits = group.commits.filterNot {
-            it.parents.isEmpty() || it.subject.equals("Initial commit", ignoreCase = true)
-        }
+        val displayCommits = group.commits
         val modalShape = RoundedCornerShape(28.dp)
+        val scrollState = rememberScrollState()
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -763,7 +764,7 @@
                 }
 
                 Text(
-                    text = "${displayCommits.size} total commits on default branch",
+                    text = "${displayCommits.size} commits",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp
                 )
@@ -773,14 +774,16 @@
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .heightIn(max = 340.dp)
+                        .heightIn(max = 440.dp)
+                        .clipToBounds()
+                        .verticalScroll(scrollState)
                 ) {
                     displayCommits.forEachIndexed { idx, commit ->
                         if (idx > 0) Spacer(Modifier.height(10.dp))
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .defaultMinSize(minHeight = 56.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .glass(
                                     hazeState = hazeState,
