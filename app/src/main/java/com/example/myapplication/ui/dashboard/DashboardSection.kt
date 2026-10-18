@@ -79,6 +79,7 @@
         hazeState: HazeState,
         viewModel: DashboardViewModel,
         onSelectChangeLogEntry: ((ChangeLogEntry) -> Unit)? = null,
+        onSelectCommitGroup: ((CommitGroup) -> Unit)? = null,
         modifier: Modifier = Modifier
     ) {
         val state by viewModel.uiState.collectAsState()
@@ -130,6 +131,9 @@
             var localSelectedEntry by remember { mutableStateOf<ChangeLogEntry?>(null) }
             val selectHandler: (ChangeLogEntry) -> Unit = onSelectChangeLogEntry ?: { localSelectedEntry = it }
 
+            var localSelectedGroup by remember { mutableStateOf<CommitGroup?>(null) }
+            val selectGroupHandler: (CommitGroup) -> Unit = onSelectCommitGroup ?: { localSelectedGroup = it }
+
             if (data == null) {
                 DashCard(hazeState, title = "Loading", subtitle = null) {
                     Text(
@@ -143,7 +147,7 @@
                 ReleaseAuditCard(hazeState, data.audits)
                 ChangeLogCard(hazeState, data.changeLog, onSelectEntry = selectHandler)
                 TraceabilityCard(hazeState, data.traceability)
-                ChangeControlCard(hazeState, data.changeControl)
+                ChangeControlCard(hazeState, data.changeControl, onSelectGroup = selectGroupHandler)
                 DependenciesCard(hazeState, data.dependencies)
             }
 
@@ -159,6 +163,23 @@
                             entry = entry,
                             hazeState = hazeState,
                             onDismiss = { localSelectedEntry = null }
+                        )
+                    }
+                }
+            }
+
+            if (onSelectCommitGroup == null) {
+                val group = localSelectedGroup
+                AnimatedVisibility(
+                    visible = group != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    if (group != null) {
+                        CommitGroupDetailModal(
+                            group = group,
+                            hazeState = hazeState,
+                            onDismiss = { localSelectedGroup = null }
                         )
                     }
                 }
@@ -489,8 +510,18 @@
         }
     }
     
+    data class CommitGroup(
+        val title: String,
+        val badgeColor: Color,
+        val commits: List<RepoCommit>
+    )
+
     @Composable
-    private fun ChangeControlCard(hazeState: HazeState, changeControl: Section<ChangeControlReport>) {
+    private fun ChangeControlCard(
+        hazeState: HazeState,
+        changeControl: Section<ChangeControlReport>,
+        onSelectGroup: (CommitGroup) -> Unit
+    ) {
         DashCard(
             hazeState,
             title = "Change control",
@@ -535,7 +566,16 @@
                             hazeState = hazeState,
                             heading = "Via Pull Request / Review (${report.reviewedCommits.size})",
                             badgeColor = GoodColor,
-                            commits = report.reviewedCommits
+                            commits = report.reviewedCommits,
+                            onClick = {
+                                onSelectGroup(
+                                    CommitGroup(
+                                        title = "Via Pull Request / Review",
+                                        badgeColor = GoodColor,
+                                        commits = report.reviewedCommits
+                                    )
+                                )
+                            }
                         )
                     }
 
@@ -545,7 +585,16 @@
                             hazeState = hazeState,
                             heading = "Direct Pushes to Main (${report.directPushes.size})",
                             badgeColor = BadColor,
-                            commits = report.directPushes
+                            commits = report.directPushes,
+                            onClick = {
+                                onSelectGroup(
+                                    CommitGroup(
+                                        title = "Direct Pushes to Main",
+                                        badgeColor = BadColor,
+                                        commits = report.directPushes
+                                    )
+                                )
+                            }
                         )
                     }
 
@@ -561,7 +610,8 @@
         hazeState: HazeState,
         heading: String,
         badgeColor: Color,
-        commits: List<RepoCommit>
+        commits: List<RepoCommit>,
+        onClick: () -> Unit
     ) {
         val capsuleShape = RoundedCornerShape(14.dp)
         Column(
@@ -574,6 +624,11 @@
                     radius = 14.dp,
                     tintAlpha = 0.08f,
                     borderAlpha = 0.22f
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
                 )
                 .padding(12.dp)
         ) {
@@ -589,11 +644,18 @@
                     text = heading,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = "Expand commits",
+                    tint = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(11.dp)
                 )
             }
             Spacer(Modifier.height(6.dp))
-            commits.take(5).forEach { commit ->
+            commits.take(4).forEach { commit ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -617,8 +679,147 @@
                     )
                 }
             }
-            if (commits.size > 5) {
-                MutedText("+ ${commits.size - 5} more")
+            if (commits.size > 4) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Tap to view all ${commits.size} commits →",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+
+    @Composable
+    internal fun CommitGroupDetailModal(
+        group: CommitGroup,
+        hazeState: HazeState,
+        onDismiss: () -> Unit
+    ) {
+        val modalShape = RoundedCornerShape(28.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 350.dp)
+                    .fillMaxWidth(0.90f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* absorb taps so capsule doesn't dismiss */ }
+                    .clip(modalShape)
+                    .glass(
+                        hazeState = hazeState,
+                        shape = modalShape,
+                        radius = 28.dp,
+                        tintAlpha = 0.16f,
+                        borderAlpha = 0.40f
+                    )
+                    .padding(22.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(group.badgeColor)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = group.title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "${group.commits.size} total commits on default branch",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .heightIn(max = 340.dp)
+                ) {
+                    group.commits.forEachIndexed { idx, commit ->
+                        if (idx > 0) Spacer(Modifier.height(10.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .glass(
+                                    hazeState = hazeState,
+                                    shape = RoundedCornerShape(12.dp),
+                                    radius = 12.dp,
+                                    tintAlpha = 0.08f,
+                                    borderAlpha = 0.18f
+                                )
+                                .padding(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = commit.shortSha,
+                                    color = GoodColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = commit.author,
+                                    color = Color.White.copy(alpha = 0.55f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = commit.subject.ifBlank { "(no message)" },
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (commit.message.lineSequence().drop(1).any { it.isNotBlank() }) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = commit.message.lineSequence().drop(1).joinToString("\n").trim(),
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

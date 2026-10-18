@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.data.github.ChangeLogEntry
 import com.example.myapplication.ui.components.glass
 import com.example.myapplication.ui.dashboard.ChangeLogDetailModal
+import com.example.myapplication.ui.dashboard.CommitGroup
+import com.example.myapplication.ui.dashboard.CommitGroupDetailModal
 import com.example.myapplication.ui.dashboard.DashboardSection
 import com.example.myapplication.ui.dashboard.DashboardViewModel
 import dev.chrisbanes.haze.HazeState
@@ -71,6 +73,7 @@ fun ProfileScreen(
 ) {
     val cardShape = RoundedCornerShape(28.dp)
     var selectedChangeLogEntry by remember { mutableStateOf<ChangeLogEntry?>(null) }
+    var selectedCommitGroup by remember { mutableStateOf<CommitGroup?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -168,7 +171,8 @@ fun ProfileScreen(
             DashboardSection(
                 hazeState = hazeState,
                 viewModel = dashboardViewModel,
-                onSelectChangeLogEntry = { selectedChangeLogEntry = it }
+                onSelectChangeLogEntry = { selectedChangeLogEntry = it },
+                onSelectCommitGroup = { selectedCommitGroup = it }
             )
 
             // Keeps the last card clear of the floating bottom nav bar.
@@ -187,6 +191,22 @@ fun ProfileScreen(
                     entry = entry,
                     hazeState = hazeState,
                     onDismiss = { selectedChangeLogEntry = null }
+                )
+            }
+        }
+
+        // Full-screen glass capsule popup for Change Control commit details
+        val group = selectedCommitGroup
+        AnimatedVisibility(
+            visible = group != null,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            if (group != null) {
+                CommitGroupDetailModal(
+                    group = group,
+                    hazeState = hazeState,
+                    onDismiss = { selectedCommitGroup = null }
                 )
             }
         }
