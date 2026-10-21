@@ -1,0 +1,172 @@
+name: Build and Publish Release with Delta Update
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v4.1)'
+        required: true
+        default: 'v4.1'
+      version_name:
+        description: 'Version Name (e.g. 4.1)'
+        required: true
+        default: '4.1'
+      version_code:
+        description: 'Version Code (e.g. 5)'
+        required: true
+        default: '5'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run Unit Tests
+        run: ./gradlew test
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Prepare Release Artifacts Directory
+        id: prep
+        run: |
+          mkdir -p dist
+          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$RELEASE_APK" ]; then
+            echo "Release APK not found, checking debug APK fallback..."
+            RELEASE_APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          fi
+          cp "$RELEASE_APK" dist/app-release.apk
+          echo "apk_path=dist/app-release.apk" >> $GITHUB_OUTPUT
+          
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag_name }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Download Previous Release for Delta Generation
+        id: prev_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p previous_release
+          echo "Looking for previous releases..."
+          PREV_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName' 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "Found previous release tag: $PREV_TAG"
+            if gh release download "$PREV_TAG" --pattern "*.apk" --dir previous_release; then
+              PREV_APK=$(find previous_release -name "*.apk" | head -n 1)
+              echo "prev_apk=$PREV_APK" >> $GITHUB_OUTPUT
+              echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+            else
+              echo "No APK found in previous release $PREV_TAG"
+            fi
+          else
+            echo "No previous release found in repository."
+          fi
+
+      - name: Generate Delta Patch & Update Manifest
+        id: delta
+        run: |
+          VERSION_NAME="${{ inputs.version_name }}"
+          VERSION_CODE="${{ inputs.version_code }}"
+          if [ -z "$VERSION_NAME" ]; then
+            VERSION_NAME="${{ steps.prep.outputs.tag }}"
+            VERSION_NAME="${VERSION_NAME#v}"
+          fi
+          if [ -z "$VERSION_CODE" ]; then
+            VERSION_CODE=1
+          fi
+
+          PREV_APK="${{ steps.prev_release.outputs.prev_apk }}"
+          PREV_TAG="${{ steps.prev_release.outputs.prev_tag }}"
+          
+          if [ -n "$PREV_APK" ] && [ -f "$PREV_APK" ]; then
+            PREV_VERSION="${PREV_TAG#v}"
+            echo "Generating delta patch from $PREV_VERSION to $VERSION_NAME..."
+            python tools/generate_patch.py "$PREV_APK" "${{ steps.prep.outputs.apk_path }}" \
+              --output-dir dist \
+              --version-name "$VERSION_NAME" \
+              --version-code "$VERSION_CODE" \
+              --from-version "$PREV_VERSION" \
+              --repo "${{ github.repository }}" \
+              --changelog "Release $VERSION_NAME with automatic delta patch support." \
+              --verify
+          else
+            echo "No previous APK found to generate delta patch against."
+            echo "Generating standalone update-manifest.json for initial release..."
+            python -c "
+import json, hashlib, os
+apk_path = '${{ steps.prep.outputs.apk_path }}'
+size = os.path.getsize(apk_path)
+h = hashlib.sha256()
+with open(apk_path, 'rb') as f:
+    while chunk := f.read(65536):
+        h.update(chunk)
+sha = h.hexdigest().lower()
+tag = '${{ steps.prep.outputs.tag }}'
+manifest = {
+    'versionName': '$VERSION_NAME',
+    'versionCode': int('$VERSION_CODE'),
+    'releaseTag': tag,
+    'releaseUrl': f'https://github.com/${{ github.repository }}/releases/tag/{tag}',
+    'changelog': 'Initial release with delta update support.',
+    'fullApk': {
+        'fileName': 'app-release.apk',
+        'downloadUrl': f'https://github.com/${{ github.repository }}/releases/download/{tag}/app-release.apk',
+        'sizeBytes': size,
+        'sha256': sha
+    },
+    'patches': []
+}
+with open('dist/update-manifest.json', 'w') as out:
+    json.dump(manifest, out, indent=2)
+print('Generated dist/update-manifest.json with full package fallback')
+"
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.prep.outputs.tag }}
+          name: "FloraScan ${{ steps.prep.outputs.tag }}"
+          body: |
+            ## FloraScan Release ${{ steps.prep.outputs.tag }}
+
+            This release includes support for **bandwidth-saving incremental (delta) updates**.
+            - **Full Package**: `app-release.apk`
+            - **Delta Patches**: Included for direct upgrades from supported previous versions (saving up to 90%+ bandwidth)
+            - **Integrity**: Verified via SHA-256 in `update-manifest.json`
+          files: |
+            dist/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

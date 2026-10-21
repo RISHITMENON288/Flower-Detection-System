@@ -221,6 +221,7 @@ fun MainScaffold(
         UpdateAvailableOverlay(
             release = availableUpdate,
             hazeState = hazeState,
+            updateViewModel = updateViewModel,
             onDismiss = { updateViewModel.dismiss() }
         )
     }
