@@ -22,3 +22,6 @@ local.properties
 # Per-module build output (app/.gitignore already covers this too, but
 # listing it at the root as well in case any other module is added later).
 /app/build/
+release_v*/
+__pycache__/
+*.pyc

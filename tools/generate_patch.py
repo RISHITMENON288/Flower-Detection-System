@@ -50,7 +50,7 @@ def sha256_bytes(data):
     """Computes hexadecimal lowercase SHA-256 checksum of bytes."""
     return hashlib.sha256(data).hexdigest().lower()
 
-def create_delta(old_bytes, new_bytes, chunk_size=32):
+def create_delta(old_bytes, new_bytes, chunk_size=128):
     """
     Computes a binary delta from old_bytes to new_bytes using block matching.
     Outputs the 32-byte header followed by 3 GZIP-compressed streams:
@@ -63,7 +63,7 @@ def create_delta(old_bytes, new_bytes, chunk_size=32):
 
     # Index chunks in old_bytes
     old_index = {}
-    step = max(8, chunk_size // 2)
+    step = chunk_size
     for i in range(0, old_len - chunk_size + 1, step):
         key = old_bytes[i:i + chunk_size]
         if key not in old_index:
@@ -84,6 +84,11 @@ def create_delta(old_bytes, new_bytes, chunk_size=32):
         if len(chunk) == chunk_size and chunk in old_index:
             candidate_pos = old_index[chunk]
             m = 0
+            block = 65536
+            while (new_pos + m + block <= new_len and 
+                   candidate_pos + m + block <= old_len and 
+                   new_bytes[new_pos + m : new_pos + m + block] == old_bytes[candidate_pos + m : candidate_pos + m + block]):
+                m += block
             while (new_pos + m < new_len and 
                    candidate_pos + m < old_len and 
                    new_bytes[new_pos + m] == old_bytes[candidate_pos + m]):
@@ -93,11 +98,14 @@ def create_delta(old_bytes, new_bytes, chunk_size=32):
                 match_len = m
 
         if match_len > 0:
-            diff_slice = bytes((new_bytes[new_pos + i] - old_bytes[match_pos + i]) % 256 for i in range(match_len))
-            diff_buf.write(diff_slice)
-            seek_offset = match_pos - (old_pos + match_len)
-            ctrl_buf.write(struct.pack("<qqq", match_len, 0, seek_offset))
-            old_pos = match_pos + match_len
+            seek_offset = match_pos - old_pos
+            if seek_offset != 0:
+                ctrl_buf.write(struct.pack("<qqq", 0, 0, seek_offset))
+                old_pos += seek_offset
+
+            diff_buf.write(b"\x00" * match_len)
+            ctrl_buf.write(struct.pack("<qqq", match_len, 0, 0))
+            old_pos += match_len
             new_pos += match_len
         else:
             # Advance until next match or EOF

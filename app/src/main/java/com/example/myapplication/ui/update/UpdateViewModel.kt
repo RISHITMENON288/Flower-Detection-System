@@ -45,8 +45,6 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         if (hasChecked && !forceCheck) return
         hasChecked = true
 
-        if (BuildConfig.DEBUG && !forceCheck) return
-
         _updateState.value = UpdateState.Checking
 
         viewModelScope.launch {
@@ -102,6 +100,50 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     fun dismiss() {
         _availableUpdate.value = null
         _updateState.value = UpdateState.Idle
+    }
+
+    /**
+     * Preview helper for testing the glass update dialog on demand,
+     * even when the installed version already matches GitHub.
+     */
+    fun previewUpdateOverlay() {
+        val app = getApplication<Application>()
+        val current = currentVersionNameOrNull() ?: "5.1"
+        val mockPlan = com.example.myapplication.data.update.UpdatePlan.Delta(
+            patch = com.example.myapplication.data.update.DeltaPatchAsset(
+                fromVersionName = current,
+                fromVersionCode = 5,
+                patchFileName = "patch_v${current}_to_v5.2.patch",
+                downloadUrl = "https://github.com/RISHITMENON288/Flower-Detection-System/releases/download/v5.1/app-debug.apk",
+                patchSizeBytes = 2097152L,
+                patchSha256 = null,
+                targetSha256 = null
+            ),
+            manifest = com.example.myapplication.data.update.UpdateManifest(
+                versionName = "5.2",
+                versionCode = 6,
+                releaseTag = "v5.2",
+                releaseUrl = "https://github.com/RISHITMENON288/Flower-Detection-System/releases/tag/v5.1",
+                changelog = "Delta update demonstration with bandwidth savings.",
+                fullApk = com.example.myapplication.data.update.FullApkAsset(
+                    fileName = "app-release.apk",
+                    downloadUrl = "https://github.com/RISHITMENON288/Flower-Detection-System/releases/download/v5.1/app-debug.apk",
+                    sizeBytes = 52428800L
+                ),
+                patches = emptyList()
+            ),
+            sourceApk = java.io.File(app.applicationInfo.sourceDir),
+            savingsPercent = 96
+        )
+
+        val release = ReleaseInfo(
+            versionTag = "v5.2",
+            releaseUrl = "https://github.com/RISHITMENON288/Flower-Detection-System/releases/tag/v5.1",
+            releaseNotes = "• Faster flower classification\n• SCM dashboard metrics pills\n• Bandwidth-efficient incremental updates",
+            plan = mockPlan
+        )
+        _availableUpdate.value = release
+        _updateState.value = UpdateState.Available(mockPlan)
     }
 
     private fun currentVersionNameOrNull(): String? = try {

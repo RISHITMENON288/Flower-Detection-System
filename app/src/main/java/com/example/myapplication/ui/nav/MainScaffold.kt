@@ -97,7 +97,7 @@ fun MainScaffold(
     // the Profile screen does not re-download everything from GitHub each time.
     val dashboardViewModel: DashboardViewModel = viewModel()
     val availableUpdate by updateViewModel.availableUpdate.collectAsState()
-    LaunchedEffect(Unit) { updateViewModel.checkForUpdateOnce() }
+    LaunchedEffect(Unit) { updateViewModel.checkForUpdateOnce(forceCheck = true) }
 
     ScreenBackground(modifier = Modifier.fillMaxSize()) { hazeState ->
         val backStackEntry by navController.currentBackStackEntryAsState()
@@ -177,7 +177,15 @@ fun MainScaffold(
                     hazeState = hazeState,
                     dashboardViewModel = dashboardViewModel,
                     onBack = { navController.popBackStack() },
-                    onSignOut = onSignOut
+                    onSignOut = onSignOut,
+                    onTriggerUpdate = {
+                        val isNewer = updateViewModel.availableUpdate.value != null
+                        if (isNewer) {
+                            updateViewModel.checkForUpdateOnce(forceCheck = true)
+                        } else {
+                            updateViewModel.previewUpdateOverlay()
+                        }
+                    }
                 )
             }
         }

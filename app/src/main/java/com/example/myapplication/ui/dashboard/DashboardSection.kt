@@ -84,6 +84,7 @@
         viewModel: DashboardViewModel,
         onSelectChangeLogEntry: ((ChangeLogEntry) -> Unit)? = null,
         onSelectCommitGroup: ((CommitGroup) -> Unit)? = null,
+        onTriggerUpdate: (() -> Unit)? = null,
         modifier: Modifier = Modifier
     ) {
         val state by viewModel.uiState.collectAsState()
@@ -150,7 +151,7 @@
                     )
                 }
             } else {
-                VersionCheckCard(hazeState, data.drift)
+                VersionCheckCard(hazeState, data.drift, onTriggerUpdate = onTriggerUpdate)
                 ReleaseAuditCard(hazeState, data.audits)
                 ChangeLogCard(hazeState, data.changeLog, onSelectEntry = selectHandler)
                 TraceabilityCard(hazeState, data.traceability, onSelectGroup = selectGroupHandler)
@@ -276,7 +277,11 @@
     }
 
     @Composable
-    private fun VersionCheckCard(hazeState: HazeState, drift: VersionDrift) {
+    private fun VersionCheckCard(
+        hazeState: HazeState,
+        drift: VersionDrift,
+        onTriggerUpdate: (() -> Unit)? = null
+    ) {
         DashCard(
             hazeState,
             title = "Version check",
@@ -287,6 +292,26 @@
             ValueRow("Latest GitHub release", sectionText(drift.latestRelease) { it ?: "no releases yet" })
             Spacer(Modifier.height(8.dp))
             drift.checks.forEach { CheckRow(it) }
+
+            val latestTag = (drift.latestRelease as? Section.Ok<String?>)?.value
+            val isNewer = latestTag != null && com.example.myapplication.data.UpdateChecker.isNewerVersion(latestTag, drift.installedName)
+            if (onTriggerUpdate != null) {
+                Spacer(Modifier.height(14.dp))
+                androidx.compose.material3.Button(
+                    onClick = onTriggerUpdate,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = if (isNewer) Color(0xFF0284C7).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(
+                        if (isNewer) "⚡ Update to $latestTag Available · Download Now" else "Preview Update Dialog (Test UI)",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
     }
     

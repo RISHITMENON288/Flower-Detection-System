@@ -69,6 +69,7 @@ fun ProfileScreen(
     dashboardViewModel: DashboardViewModel,
     onBack: () -> Unit,
     onSignOut: () -> Unit,
+    onTriggerUpdate: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val cardShape = RoundedCornerShape(28.dp)
@@ -172,7 +173,8 @@ fun ProfileScreen(
                 hazeState = hazeState,
                 viewModel = dashboardViewModel,
                 onSelectChangeLogEntry = { selectedChangeLogEntry = it },
-                onSelectCommitGroup = { selectedCommitGroup = it }
+                onSelectCommitGroup = { selectedCommitGroup = it },
+                onTriggerUpdate = onTriggerUpdate
             )
 
             // Keeps the last card clear of the floating bottom nav bar.
